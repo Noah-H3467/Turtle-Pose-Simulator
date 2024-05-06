@@ -59,7 +59,7 @@ class TurtlePose:
     def incrementXY(self, x, y):
         self.x += x
         self.y += y
-        self.turtle.goto(x,y)
+        self.turtle.goto(self.x,self.y)
 
     def getX(self):
         return self.x
@@ -87,25 +87,21 @@ class Constants:
     kRotP = 5
     kRotI = 5
     kRotD = 5
-    kMaxVelocity = 30
-    kMaxAcceleration = 20
+    kMaxVelocity = 300
+    kMaxAcceleration = 70
     kMaxAngularVelocity = 540
     kMaxAngularAcceleration = 600
 
 
 class TrapezoidTurtlePID:
 
-
-
     # Inputs are two TurtlePose objects, one for the future (which you need to create), and one for the present (pass in Nocturne), and one TurtlePIDConstants object
     # Whatever you do, do NOT make the current and goal poses the same yet. That still needs to be worked out.
-    def __init__(self, FuturePose, PresentPose, prevAngularVelocity):
+    def __init__(self, FuturePose, PresentPose, prevAngularVelocity, prevLinearVelocity, deltaTime):
         self.Pose2 = FuturePose
         self.Pose1 = PresentPose
-        global deltaTime
-        deltaTime = 0.04
-            # Previous velocity should be from previous time running pid, default is 0
-        previousVelocity = 0.0
+        self.deltaTime = deltaTime            # Previous velocity should be from previous time running pid, default is 0
+        previousVelocity = prevLinearVelocity
         previousAngularVelocity = prevAngularVelocity
     #Takes the difference of the x, y, and theta attributes of the TurtlePose objects
         self.deltaX = self.Pose2.getX() - self.Pose1.getX()
@@ -128,7 +124,7 @@ class TrapezoidTurtlePID:
             #In radians, between +/- pi/2
             DirectionToTarget = math.atan(self.deltaY/self.deltaX)
             DirectionToTarget = DirectionToTarget*180/math.pi
-            print("Chris")
+            # print("Chris")
         #Q2 and 180 degrees
         elif self.deltaX < 0 and self.deltaY >= 0:
             DirectionToTarget = math.atan(self.deltaY/self.deltaX)
@@ -142,6 +138,7 @@ class TrapezoidTurtlePID:
         # The Origin
         elif self.deltaX == 0 and self.deltaY == 0:
             print("You weren't supposed to have the same present and future position yet...to be worked on")
+            print("This loop should stop unless turtle still needs to rotate")
             DirectionToTarget = 0
         else:
             print("Uh Oh! Something went wrong")
@@ -182,20 +179,19 @@ class TrapezoidTurtlePID:
         # Rotate As determined by trapezoid - no PID yet
         self.Pose1.incrementRot(m_rotate)
         # Next we use trig (theta and r) to find the new x and y components
-
+        m_incrementX = math.cos(DirectionToTarget*math.pi/180)*m_distance
+        m_incrementY = math.sin(DirectionToTarget*math.pi/180)*m_distance
+        self.Pose1.incrementXY(m_incrementX, m_incrementY)
         # Then increment x and y
         
     def printDeltaPose(self):
         print("Trapezoid PID Delta Pose | dX: ", self.deltaX, " dY: ", self.deltaY, " dTheta: ", self.deltaTheta)
     
     def getLinearVelocity(self):
-        return m_distance / deltaTime
+        return m_distance / self.deltaTime
 
     def getAngularVelocity(self):
-        return m_rotate / deltaTime
-
-
-
+        return m_rotate / self.deltaTime
 
 # Main class
 #Not using periodic() right now due to main thread not in main loop error
@@ -236,26 +232,28 @@ clock.start()
 #isFinished.clear()
 print("The timer has been stopped!")
 Nocturne.printPos()
-DesiredPose = TurtlePose(1, 0,180, True)
+DesiredPose = TurtlePose(-150, 50, 130, True)
 
 # How long does the PID take?
 print("time", time.perf_counter() - clock._start_time)
-NocturneTrapezoidPID = TrapezoidTurtlePID(DesiredPose, Nocturne, 0)
+NocturneTrapezoidPID = TrapezoidTurtlePID(DesiredPose, Nocturne, 0, 0, 0.04)
 NocturneTrapezoidPID.printDeltaPose()
 # Get angular Velocity to pass into the next time we create a PID, eventually do this with time (use time.perf_counter() in the trapezoidPID class) and linear velocity
 angularVelocity = NocturneTrapezoidPID.getAngularVelocity()
+linearVelocity = NocturneTrapezoidPID.getLinearVelocity()
 print("time", time.perf_counter() - clock._start_time)
 
 time.sleep(3)
 print("time", time.perf_counter() - clock._start_time)
 #Instead of doing a goofy ahh for loop figure out how to end the loop (use a boolean check in there) which should be a while loop.
-for x in range(26):
-    NocturneTrapezoidPID = TrapezoidTurtlePID(DesiredPose, Nocturne, angularVelocity)
+for x in range(101):
+    NocturneTrapezoidPID = TrapezoidTurtlePID(DesiredPose, Nocturne, angularVelocity, linearVelocity, 0.04)
     NocturneTrapezoidPID.printDeltaPose()
+    Nocturne.printPos()
     angularVelocity = NocturneTrapezoidPID.getAngularVelocity()
-print("time", time.perf_counter() - clock._start_time)
-
+    linearVelocity = NocturneTrapezoidPID.getLinearVelocity()
 clock.stop()
+print("It's so on at Toyotathon!")
 time.sleep(5)
 
 #the down part of the trapezoid will be PID controlled, but that is something for later
