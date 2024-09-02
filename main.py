@@ -5,7 +5,7 @@ import time
 from turtle import *
 
 # timer.py - basic timer classes from RealPython
-
+import pidcontrol
 class TimerError(Exception):
     """A custom exception used to report errors in use of Timer class"""
 
